@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gabimaru Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #0f172a;
+      --darker: #0a0e1a;
+      --light: #f8fafc;
+      --gray: #64748b;
+      --gray-light: #cbd5e1;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--darker);
+      color: var(--light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      background: var(--dark);
+      color: var(--light);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .logo i {
+      color: var(--primary);
+    }
+
+    .list-container {
+      padding: 2rem;
+      flex: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .dashboard-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    
+    .dashboard-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .dashboard-title i {
+      color: var(--primary);
+    }
+
+    .pair-count {
+      text-align: center;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      color: var(--gray-light);
+      background: var(--card-bg);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .pair-count i {
+      color: var(--primary);
+    }
+
+    .number-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+      margin: 1rem auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+      max-width: 500px;
+    }
+    
+    .number-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .number-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .number-text i {
+      color: var(--primary);
+    }
+
+    .delete-btn {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    
+    .delete-btn:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .add-button {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background-color: var(--primary);
+      color: white;
+      font-size: 1.5rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-button:hover {
+      transform: scale(1.1);
+      background-color: var(--primary-dark);
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--gray);
+      background: var(--dark);
+      border-top: 1px solid var(--card-border);
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: var(--gray);
+      margin-top: 2rem;
+      padding: 2rem;
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .empty-msg i {
+      font-size: 2rem;
+      color: var(--primary);
+    }
+
+    @media (max-width: 480px) {
+      .list-container {
+        padding: 1.5rem 1rem;
+      }
+      
+      header {
+        padding: 1rem;
+      }
+      
+      .logo {
+        font-size: 1.3rem;
+      }
+      
+      .number-card {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <i class="fas fa-bolt"></i>
+      <span>TMK Web Pairing</span>
+    </div>
+  </header>
+
+  <div class="list-container">
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">
+        <i class="fas fa-list"></i>
+        Your Pairings
+      </h2>
+    </div>
+    
+    <div class="pair-count" id="pairCount">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>Loading...</span>
+    </div>
+    
+    <div id="pairedList"></div>
+  </div>
+
+  <button class="add-button" onclick="window.location.href='/home'" title="Add new pairing">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <footer>
+    <i class="fab fa-js" style="color: #ef4444"></i> by Gabimaru Dev &copy; 2025
+  </footer>
+
+<script>
+  function loadUserPairings() {
+    fetch('/me')
+      .then(res => res.json())
+      .then(data => {
+        const numbers = data.pairings || [];
+        const countText = `${numbers.length}/2 numbers paired`;
+        document.getElementById("pairCount").innerHTML = `<i class="fas fa-link"></i> ${countText}`;
+
+        const list = document.getElementById("pairedList");
+        list.innerHTML = "";
+
+        if (numbers.length === 0) {
+          list.innerHTML = `
+            <div class="empty-msg">
+              <i class="fas fa-inbox"></i>
+              <div>No pairings yet. Click + to get started.</div>
+            </div>`;
+          return;
+        }
+
+        numbers.forEach(num => {
+          const div = document.createElement("div");
+          div.className = "number-card";
+
+          const span = document.createElement("span");
+          span.className = "number-text";
+          span.innerHTML = `<i class="fas fa-hashtag"></i> ${num}`;
+
+          const btn = document.createElement("button");
+          btn.className = "delete-btn";
+          btn.innerHTML = `<i class="fas fa-trash"></i> Delete`;
+          btn.title = "Delete this session";
+          btn.onclick = () => {
+            if (confirm(`Delete pairing for ${num}?`)) {
+              // Show loading state
+              btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
+              btn.disabled = true;
+              
+              fetch(`/paired/${num}`, { method: "DELETE" })
+                .then(r => r.json())
+                .then(resp => {
+                  if (resp.success) {
+                    loadUserPairings();
+                  } else {
+                    alert("Failed to delete pairing.");
+                    btn.innerHTML = `<i class="fas fa-trash"></i> Delete`;
+                    btn.disabled = false;
+                  }
+                })
+                .catch(() => {
+                  alert("Error deleting number.");
+                  btn.innerHTML = `<i class="fas fa-trash"></i> Delete`;
+                  btn.disabled = false;
+                });
+            }
+          };
+
+          div.appendChild(span);
+          div.appendChild(btn);
+          list.appendChild(div);
+        });
+      })
+      .catch(() => {
+        document.getElementById("pairedList").innerHTML = `
+          <div class="empty-msg">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>Failed to load pairings. Please try again later.</div>
+          </div>`;
+      });
+  }
+
+  function pairNumber(rawNumber) {
+    let number = rawNumber.trim();
+
+    // sanitize
+    number = number.replace(/\s+/g, ""); // remove spaces
+    number = number.replace(/^\+/, "");  // strip leading +
+
+    if (!/^\d+$/.test(number)) {
+      return alert("Phone number must contain only digits.");
+    }
+    if (number.length < 11 || number.length > 15) {
+      return alert("Phone number must include country code (e.g. 2349012834275).");
+    }
+
+    fetch(`/pair?number=${number}`)
+      .then(res => res.text())
+      .then(msg => {
+        alert(msg);
+        loadUserPairings(); // refresh list after pairing
+      })
+      .catch(() => alert("Error pairing number."));
+  }
+
+  loadUserPairings();
+</script>
+</body>
+</html>

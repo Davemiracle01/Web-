@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gabimaru Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #0f172a;
+      --darker: #0a0e1a;
+      --light: #f8fafc;
+      --gray: #64748b;
+      --gray-light: #cbd5e1;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--darker);
+      color: var(--light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      background: var(--dark);
+      color: var(--light);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 0;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .logo i {
+      color: var(--primary);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--card-border);
+      margin-top: 2rem;
+    }
+    
+    .card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .card-title i {
+      color: var(--primary);
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--dark);
+      border: 1px solid var(--card-border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 0.75rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .form-label i {
+      color: var(--primary);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: var(--dark);
+      color: var(--light);
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .form-input::placeholder {
+      color: var(--gray);
+    }
+
+    .form-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.9rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    
+    .form-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+
+    .error {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--gray);
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      background: var(--dark);
+      border-top: 1px solid var(--card-border);
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 2rem 1.5rem;
+        margin: 0 1rem;
+      }
+      
+      header {
+        padding: 1rem;
+      }
+      
+      .logo {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <i class="fas fa-bolt"></i>
+      <span>TMK Web</span>
+    </div>
+  </header>
+
+  <div class="login-card">
+    <div class="card-header">
+      <h2 class="card-title">
+        <i class="fas fa-user-shield"></i>
+        User Authentication
+      </h2>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--gray);">"Silent but steadfast"</p>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" id="tab-login">Login</div>
+      <div class="tab" id="tab-register">Create Account</div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label" for="username">
+        <i class="fas fa-user"></i>
+        Username:
+      </label>
+      <input class="form-input" type="text" id="username" placeholder="Enter your username" />
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label" for="password">
+        <i class="fas fa-lock"></i>
+        Password:
+      </label>
+      <input class="form-input" type="password" id="password" placeholder="Enter your password" />
+    </div>
+
+    <button class="form-btn" id="submit-btn">
+      <i class="fas fa-sign-in-alt"></i>
+      Login
+    </button>
+    
+    <div class="error" id="error" style="display: none;">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="error-text"></span>
+    </div>
+
+    <div class="footer" style="position: relative; margin-top: 1.5rem; background: transparent; border: none;">
+      &copy; 2025 <span style="color: var(--primary)">TMK System</span> | All Rights Reserved
+    </div>
+  </div>
+
+  <div class="footer">
+    <i class="fab fa-js" style="color: #ef4444"></i> by Gabimaru Dev &copy; 2025
+  </div>
+
+  <script>
+    let mode = "login";
+
+    document.getElementById("tab-login").onclick = () => {
+      mode = "login";
+      setActiveTab();
+    };
+
+    document.getElementById("tab-register").onclick = () => {
+      mode = "register";
+      setActiveTab();
+    };
+
+    function setActiveTab() {
+      document.getElementById("tab-login").classList.toggle("active", mode === "login");
+      document.getElementById("tab-register").classList.toggle("active", mode === "register");
+      
+      const submitBtn = document.getElementById("submit-btn");
+      if (mode === "login") {
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+      } else {
+        submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+      }
+    }
+
+    function showError(message) {
+      const errorElement = document.getElementById("error");
+      const errorText = document.getElementById("error-text");
+      
+      errorText.textContent = message;
+      errorElement.style.display = "flex";
+    }
+
+    function hideError() {
+      document.getElementById("error").style.display = "none";
+    }
+
+    function submit() {
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      
+      hideError();
+
+      if (!user || !pass) {
+        showError("Both fields are required.");
+        return;
+      }
+
+      // Show loading state
+      const submitBtn = document.getElementById("submit-btn");
+      const originalText = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+      submitBtn.disabled = true;
+
+      fetch(mode === "login" ? "/login" : "/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          window.location.href = "/dashboard";
+        } else {
+          showError("❌ " + (data.message || "Invalid credentials."));
+        }
+      })
+      .catch(() => {
+        showError("Something went wrong.");
+      })
+      .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+      });
+    }
+    
+    // Add event listeners
+    document.getElementById("submit-btn").addEventListener("click", submit);
+    
+    // Add Enter key support
+    document.getElementById('username').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        submit();
+      }
+    });
+    
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        submit();
+      }
+    });
+  </script>
+</body>
+</html>
