@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Gabimaru — Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f12;
+      --bg2: #141720;
+      --surface: #1a1e27;
+      --surface2: #222736;
+      --border: #2c3142;
+      --accent: #22c55e;
+      --accent-dim: rgba(34,197,94,.12);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,.12);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245,158,11,.1);
+      --blue: #3b82f6;
+      --blue-dim: rgba(59,130,246,.12);
+      --text: #e8eaf0;
+      --text-muted: #7b8299;
+      --text-dim: #4a5068;
+      --radius: 12px;
+    }
+    body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    /* ── Sidebar ── */
+    .layout { display:flex; min-height:100vh; }
+    .sidebar {
+      width: 220px; flex-shrink:0;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display:flex; flex-direction:column;
+      padding: 1.5rem 0;
+      position: sticky; top:0; height:100vh;
+    }
+    .sidebar-logo {
+      display:flex; align-items:center; gap:.6rem;
+      padding: 0 1.4rem 1.5rem;
+      font-weight:800; font-size:1.05rem; letter-spacing:-.02em;
+      border-bottom: 1px solid var(--border);
+      margin-bottom:1.2rem;
+    }
+    .logo-pip { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+    .admin-badge {
+      font-size:.62rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+      color:var(--accent); background:var(--accent-dim); border-radius:5px;
+      padding:2px 7px; margin-left:auto;
+    }
+    .nav-item {
+      display:flex; align-items:center; gap:.75rem;
+      padding:.65rem 1.4rem;
+      font-size:.88rem; font-weight:500; color:var(--text-muted);
+      cursor:pointer; transition:all .15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { color:var(--text); background:rgba(255,255,255,.03); }
+    .nav-item.active { color:var(--accent); background:var(--accent-dim); border-left-color:var(--accent); }
+    .nav-icon { font-size:1rem; width:18px; text-align:center; }
+    .nav-sep { height:1px; background:var(--border); margin:.75rem 1.4rem; }
+    .sidebar-foot { margin-top:auto; padding:1.2rem 1.4rem 0; border-top:1px solid var(--border); }
+    .logout-btn {
+      width:100%; padding:.6rem; background:var(--red-dim); color:var(--red);
+      border:1px solid var(--red); border-radius:8px;
+      font-family:'Outfit',sans-serif; font-weight:600; font-size:.84rem;
+      cursor:pointer; transition:all .15s;
+    }
+    .logout-btn:hover { background:var(--red); color:white; }
+
+    /* ── Main ── */
+    .main { flex:1; display:flex; flex-direction:column; overflow:auto; }
+    .topbar {
+      padding:1.2rem 2rem; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+      background:var(--bg2); position:sticky; top:0; z-index:10;
+    }
+    .page-title { font-size:1.05rem; font-weight:700; }
+    .status-pill {
+      display:flex; align-items:center; gap:.5rem;
+      font-size:.78rem; color:var(--accent); font-weight:500;
+      background:var(--accent-dim); border-radius:99px; padding:.3rem .85rem;
+    }
+    .pulse { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .content { padding:2rem; flex:1; }
+
+    /* ── Tabs (views) ── */
+    .view { display:none; }
+    .view.active { display:block; }
+
+    /* ── Stats row ── */
+    .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:1.2rem 1.4rem;
+    }
+    .stat-val { font-size:1.8rem; font-weight:800; letter-spacing:-.03em; margin-bottom:.25rem; }
+    .stat-label { font-size:.78rem; color:var(--text-muted); font-weight:500; }
+    .stat.green .stat-val { color:var(--accent); }
+    .stat.red .stat-val { color:var(--red); }
+    .stat.blue .stat-val { color:var(--blue); }
+    .stat.yellow .stat-val { color:var(--yellow); }
+
+    /* ── Section ── */
+    .section { margin-bottom:2rem; }
+    .section-title {
+      font-size:.72rem; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; color:var(--text-muted);
+      margin-bottom:1rem; display:flex; align-items:center; gap:.5rem;
+    }
+    .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── Table ── */
+    .table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .tbl { width:100%; border-collapse:collapse; }
+    .tbl th {
+      padding:.75rem 1.1rem; text-align:left;
+      font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+      color:var(--text-dim); background:var(--surface2);
+      border-bottom:1px solid var(--border);
+    }
+    .tbl td { padding:.85rem 1.1rem; font-size:.88rem; border-bottom:1px solid var(--border); }
+    .tbl tr:last-child td { border-bottom:none; }
+    .tbl tr:hover td { background:rgba(255,255,255,.02); }
+    .tbl .mono { font-family:'JetBrains Mono',monospace; font-size:.8rem; }
+
+    /* ── Badges ── */
+    .badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:5px; font-size:.72rem; font-weight:600; }
+    .badge.green { background:var(--accent-dim); color:var(--accent); }
+    .badge.red   { background:var(--red-dim); color:var(--red); }
+    .badge.blue  { background:var(--blue-dim); color:var(--blue); }
+
+    /* ── Action buttons ── */
+    .act { display:flex; gap:.4rem; }
+    .abtn { padding:.3rem .7rem; border-radius:6px; font-family:'Outfit',sans-serif; font-size:.78rem; font-weight:600; cursor:pointer; border:none; transition:all .15s; }
+    .abtn.red   { background:var(--red-dim); color:var(--red); }
+    .abtn.red:hover { background:var(--red); color:white; }
+    .abtn.blue  { background:var(--blue-dim); color:var(--blue); }
+    .abtn.blue:hover { background:var(--blue); color:white; }
+    .abtn.green { background:var(--accent-dim); color:var(--accent); }
+    .abtn.green:hover { background:var(--accent); color:white; }
+
+    /* ── Panel form ── */
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.5rem; }
+    .panel-title { font-size:.95rem; font-weight:700; margin-bottom:1.2rem; }
+    .field { margin-bottom:1rem; }
+    .field label { display:block; font-size:.77rem; font-weight:600; color:var(--text-muted); margin-bottom:.4rem; letter-spacing:.04em; text-transform:uppercase; }
+    .field input, .field select {
+      width:100%; padding:.72rem .9rem;
+      border:1.5px solid var(--border); border-radius:9px;
+      font-family:'Outfit',sans-serif; font-size:.9rem; color:var(--text);
+      background:var(--bg2); outline:none; transition:all .15s;
+    }
+    .field input:focus, .field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,197,94,.12); }
+    .field input::placeholder { color:var(--text-dim); }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .btn-panel {
+      padding:.72rem 1.4rem; background:var(--accent); color:white;
+      border:none; border-radius:9px;
+      font-family:'Outfit',sans-serif; font-weight:700; font-size:.88rem;
+      cursor:pointer; transition:all .15s;
+      display:inline-flex; align-items:center; gap:.5rem;
+    }
+    .btn-panel:hover { background:#16a34a; }
+    .btn-panel:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* ── Result terminal ── */
+    .terminal {
+      background:var(--bg); border:1px solid var(--border); border-radius:9px;
+      padding:1rem 1.2rem; font-family:'JetBrains Mono',monospace; font-size:.8rem;
+      color:#a0aec0; min-height:80px; max-height:260px; overflow-y:auto;
+      margin-top:1rem; white-space:pre-wrap; line-height:1.6;
+    }
+    .terminal .ok  { color:var(--accent); }
+    .terminal .bad { color:var(--red); }
+    .terminal .info { color:var(--yellow); }
+
+    /* ── Empty ── */
+    .empty { text-align:center; padding:3rem 1rem; color:var(--text-dim); font-size:.88rem; }
+    .empty-icon { font-size:2rem; margin-bottom:.5rem; }
+
+    /* ── Notification ── */
+    #notif {
+      position:fixed; top:1.5rem; right:1.5rem; z-index:999;
+      padding:.8rem 1.2rem; border-radius:10px;
+      font-size:.84rem; font-weight:600;
+      display:none; align-items:center; gap:.5rem;
+      box-shadow:0 4px 20px rgba(0,0,0,.3);
+      animation: slideIn .25s ease;
+    }
+    @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+    #notif.ok  { background:var(--accent); color:white; }
+    #notif.err { background:var(--red); color:white; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spin { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:white; border-radius:50%; animation:spin .6s linear infinite; }
+
+    /* Mobile sidebar collapse */
+    @media(max-width:768px) {
+      .sidebar { width:60px; }
+      .sidebar-logo span, .admin-badge, .nav-item span, .sidebar-foot .logout-btn { display:none; }
+      .sidebar-logo { justify-content:center; padding:0 0 1.5rem; }
+      .nav-item { justify-content:center; padding:.65rem; }
+      .sidebar-foot { padding:.8rem .5rem 0; }
+      .sidebar-foot::before { display:none; }
+      .logout-icon { display:flex !important; }
+      .content { padding:1.2rem; }
+      .stats { grid-template-columns:1fr 1fr; }
+      .row2 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="notif"></div>
+
+<!-- LOGIN GATE -->
+<div id="login-gate" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);">
+  <div style="width:100%;max-width:360px;padding:1rem;">
+    <div style="text-align:center;margin-bottom:2rem;">
+      <div style="font-size:1.4rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.3rem;">⚡ Admin Panel</div>
+      <div style="font-size:.83rem;color:var(--text-muted);">Restricted access</div>
+    </div>
+    <div class="panel">
+      <div class="field"><label>Username</label><input type="text" id="lg-u" placeholder="admin" value="admin"/></div>
+      <div class="field"><label>Password</label><input type="password" id="lg-p" placeholder="••••••••"/></div>
+      <button class="btn-panel" style="width:100%;justify-content:center;" id="lg-btn" onclick="doAdminLogin()">Access Panel</button>
+      <div style="margin-top:.75rem;font-size:.8rem;color:var(--red);display:none;" id="lg-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN PANEL -->
+<div class="layout" id="panel" style="display:none;">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-pip"></div>
+      <span>Gabimaru</span>
+      <div class="admin-badge">ADMIN</div>
+    </div>
+
+    <div class="nav-item active" data-view="overview" onclick="switchView('overview')">
+      <span class="nav-icon">📊</span><span>Overview</span>
+    </div>
+    <div class="nav-item" data-view="users" onclick="switchView('users')">
+      <span class="nav-icon">👥</span><span>Users</span>
+    </div>
+    <div class="nav-item" data-view="sessions" onclick="switchView('sessions')">
+      <span class="nav-icon">📱</span><span>Sessions</span>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-view="react" onclick="switchView('react')">
+      <span class="nav-icon">❤️</span><span>Auto React</span>
+    </div>
+    <div class="nav-item" data-view="channel" onclick="switchView('channel')">
+      <span class="nav-icon">📡</span><span>Channel Info</span>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-view="pair-admin" onclick="switchView('pair-admin')">
+      <span class="nav-icon">🔗</span><span>Force Pair</span>
+    </div>
+
+    <div class="sidebar-foot">
+      <button class="logout-btn" onclick="window.location.href='/logout'">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="pg-title">Overview</div>
+      <div class="status-pill"><div class="pulse"></div><span id="sess-count">0 active sessions</span></div>
+    </div>
+
+    <div class="content">
+
+      <!-- OVERVIEW -->
+      <div class="view active" id="view-overview">
+        <div class="stats">
+          <div class="stat green"><div class="stat-val" id="stat-sessions">0</div><div class="stat-label">Active Sessions</div></div>
+          <div class="stat blue"><div class="stat-val" id="stat-users">0</div><div class="stat-label">Total Users</div></div>
+          <div class="stat yellow"><div class="stat-val" id="stat-pairs">0</div><div class="stat-label">Paired Numbers</div></div>
+          <div class="stat red"><div class="stat-val" id="stat-pages">—</div><div class="stat-label">Server Status</div></div>
+        </div>
+        <div class="section">
+          <div class="section-title">All Paired Numbers</div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead><tr><th>Number</th><th>Owner</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="overview-pairs-body"><tr><td colspan="4" class="empty"><div class="empty-icon">📭</div>Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="view" id="view-users">
+        <div class="section">
+          <div class="section-title">User Management</div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead><tr><th>Username</th><th>Pairings</th><th>Actions</th></tr></thead>
+              <tbody id="users-body"><tr><td colspan="3"><div class="empty"><div class="empty-icon">👤</div>Loading...</div></td></tr></tbody>
+            </table>
+          </div>
+          <div id="users-pagination" style="display:flex;gap:.5rem;margin-top:1rem;"></div>
+        </div>
+      </div>
+
+      <!-- SESSIONS -->
+      <div class="view" id="view-sessions">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+          <button class="btn-panel" onclick="loadSessions()">↻ Refresh</button>
+        </div>
+        <div class="section">
+          <div class="section-title">Live Sessions</div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead><tr><th>Number</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="sess-body"><tr><td colspan="3"><div class="empty"><div class="empty-icon">📡</div>Loading...</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTO REACT -->
+      <div class="view" id="view-react">
+        <div class="panel">
+          <div class="panel-title">Auto React to Channel Message</div>
+          <div class="field"><label>Channel Message Link</label><input type="text" id="react-link" placeholder="https://whatsapp.com/channel/XXXX/msgID"/></div>
+          <div class="row2">
+            <div class="field"><label>Emoji</label><input type="text" id="react-emoji" value="❤️" placeholder="❤️"/></div>
+          </div>
+          <button class="btn-panel" id="react-btn" onclick="doReact()">▶ Run Auto React</button>
+        </div>
+        <div class="terminal" id="react-result">// Results will appear here...</div>
+      </div>
+
+      <!-- CHANNEL INFO -->
+      <div class="view" id="view-channel">
+        <div class="panel">
+          <div class="panel-title">Get Channel Information</div>
+          <div class="field"><label>Invite Code</label><input type="text" id="ch-code" placeholder="Paste invite code from channel URL"/></div>
+          <button class="btn-panel" id="ch-btn" onclick="doChannelInfo()">🔍 Fetch Info</button>
+        </div>
+        <div class="terminal" id="ch-result">// Channel data will appear here...</div>
+      </div>
+
+      <!-- FORCE PAIR -->
+      <div class="view" id="view-pair-admin">
+        <div class="panel">
+          <div class="panel-title">Force Pair a Number</div>
+          <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.2rem;">Pair any number directly — bypasses user limits.</p>
+          <div class="field"><label>Phone Number</label><input type="tel" id="fp-num" placeholder="e.g. 2547001234567" maxlength="15"/></div>
+          <button class="btn-panel" id="fp-btn" onclick="doForcePair()">🔗 Force Pair</button>
+        </div>
+        <div class="terminal" id="fp-result">// Pairing output will appear here...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPage = 1;
+  let pollTimer = null;
+
+  // ── Login ─────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('lg-p').addEventListener('keydown', e => { if(e.key==='Enter') doAdminLogin(); });
+  });
+
+  function doAdminLogin() {
+    const u = document.getElementById('lg-u').value.trim();
+    const p = document.getElementById('lg-p').value.trim();
+    const err = document.getElementById('lg-err');
+    const btn = document.getElementById('lg-btn');
+    err.style.display = 'none';
+    if(!u||!p){ err.textContent='Both fields required.'; err.style.display='block'; return; }
+    btn.innerHTML = '<div class="spin"></div> Verifying...'; btn.disabled = true;
+    fetch('/login',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:u, password:p})
+    }).then(r=>r.json()).then(d=>{
+      if(d.success){ enterPanel(); }
+      else { err.textContent = d.message||'Access denied.'; err.style.display='block'; btn.textContent='Access Panel'; btn.disabled=false; }
+    }).catch(()=>{ err.textContent='Connection error.'; err.style.display='block'; btn.textContent='Access Panel'; btn.disabled=false; });
+  }
+
+  function enterPanel() {
+    document.getElementById('login-gate').style.display = 'none';
+    document.getElementById('panel').style.display = 'flex';
+    loadAll();
+  }
+
+  // ── Load all data ─────────────────────────────────
+  function loadAll() {
+    loadOverview();
+    loadUsers();
+    loadSessions();
+  }
+
+  // ── Switch view ───────────────────────────────────
+  const viewTitles = { overview:'Overview', users:'User Management', sessions:'Live Sessions', react:'Auto React', channel:'Channel Info', 'pair-admin':'Force Pair' };
+  function switchView(v) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelector('[data-view="'+v+'"]').classList.add('active');
+    document.getElementById('pg-title').textContent = viewTitles[v]||v;
+  }
+
+  // ── Overview ──────────────────────────────────────
+  function loadOverview() {
+    Promise.all([
+      fetch('/admin-data').then(r=>r.json()),
+      fetch('/admin/ses-status').then(r=>r.json())
+    ]).then(([data, sess]) => {
+      const users = data.users||[];
+      const paired = data.paired||[];
+      const sessions = sess.sessions||[];
+
+      document.getElementById('stat-sessions').textContent = sessions.length;
+      document.getElementById('stat-users').textContent = data.totalUsers||0;
+      document.getElementById('stat-pairs').textContent = paired.length;
+      document.getElementById('stat-pages').textContent = '🟢 Online';
+      document.getElementById('sess-count').textContent = sessions.length + ' active session'+(sessions.length!==1?'s':'');
+
+      // Build number→owner map
+      const ownerMap = {};
+      users.forEach(u => (u.pairings||[]).forEach(p => { ownerMap[p] = u.username; }));
+
+      const tbody = document.getElementById('overview-pairs-body');
+      if(!paired.length){ tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-icon">📭</div>No paired numbers</div></td></tr>`; return; }
+      tbody.innerHTML = paired.map(n => {
+        const live = sessions.some(s => s.number === n);
+        return `<tr>
+          <td class="mono">+${n}</td>
+          <td>${ownerMap[n]||'<span style="color:var(--text-dim)">—</span>'}</td>
+          <td><span class="badge ${live?'green':'red'}">${live?'● Active':'○ Offline'}</span></td>
+          <td><div class="act">
+            <button class="abtn blue" onclick="reloadSession('${n}')">↻ Reload</button>
+            <button class="abtn red" onclick="adminDelPair('${n}')">✕ Remove</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+    });
+  }
+
+  // ── Users ─────────────────────────────────────────
+  function loadUsers(page) {
+    page = page||currentPage;
+    fetch('/admin-data?page='+page+'&limit=10').then(r=>r.json()).then(data=>{
+      currentPage = data.page||1;
+      const users = data.users||[];
+      const tbody = document.getElementById('users-body');
+      if(!users.length){ tbody.innerHTML=`<tr><td colspan="3"><div class="empty"><div class="empty-icon">👤</div>No users found</div></td></tr>`; return; }
+      tbody.innerHTML = users.map(u => `<tr>
+        <td><strong>${u.username}</strong></td>
+        <td>${(u.pairings||[]).map(p=>`<span class="badge blue mono">+${p}</span>`).join(' ')||'<span style="color:var(--text-dim)">None</span>'}</td>
+        <td><div class="act">
+          <button class="abtn red" onclick="adminDelUser('${u.username}')">🗑 Delete</button>
+        </div></td>
+      </tr>`).join('');
+
+      // Pagination
+      const pgDiv = document.getElementById('users-pagination');
+      pgDiv.innerHTML = '';
+      const total = Math.ceil((data.totalUsers||0)/10);
+      for(let i=1;i<=total;i++){
+        const b = document.createElement('button');
+        b.textContent = i;
+        b.style.cssText = `padding:.35rem .75rem;border-radius:7px;border:1px solid var(--border);background:${i===currentPage?'var(--accent)':'var(--surface)'};color:${i===currentPage?'white':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:.82rem;`;
+        b.onclick = () => loadUsers(i);
+        pgDiv.appendChild(b);
+      }
+    });
+  }
+
+  // ── Sessions ──────────────────────────────────────
+  function loadSessions() {
+    fetch('/admin/ses-status').then(r=>r.json()).then(data=>{
+      const sessions = data.sessions||[];
+      document.getElementById('sess-count').textContent = sessions.length + ' active session'+(sessions.length!==1?'s':'');
+      const tbody = document.getElementById('sess-body');
+      if(!sessions.length){ tbody.innerHTML=`<tr><td colspan="3"><div class="empty"><div class="empty-icon">📡</div>No active sessions</div></td></tr>`; return; }
+      tbody.innerHTML = sessions.map(s=>`<tr>
+        <td class="mono">+${s.number}</td>
+        <td><span class="badge green">● ${s.status}</span></td>
+        <td><div class="act">
+          <button class="abtn blue" onclick="reloadSession('${s.number}')">↻ Reload</button>
+          <button class="abtn red" onclick="adminDelPair('${s.number}')">✕ Remove</button>
+        </div></td>
+      </tr>`).join('');
+    });
+  }
+
+  // ── Admin actions ─────────────────────────────────
+  function adminDelUser(username) {
+    if(!confirm('Delete user "'+username+'" and ALL their data?')) return;
+    fetch('/admin/users/'+username,{method:'DELETE'}).then(r=>r.json()).then(d=>{
+      notify(d.success?'ok':'err', d.message||'Done');
+      if(d.success){ loadUsers(); loadOverview(); }
+    });
+  }
+
+  function adminDelPair(num) {
+    if(!confirm('Remove +'+num+'?')) return;
+    fetch('/admin/pairs/'+num,{method:'DELETE'}).then(r=>r.json()).then(d=>{
+      notify(d.success?'ok':'err', d.message||'Done');
+      if(d.success){ loadOverview(); loadSessions(); }
+    });
+  }
+
+  function reloadSession(num) {
+    notify('ok', 'Reloading +'+num+'...');
+    fetch('/reload-user?number='+num).then(r=>r.json()).then(d=>{
+      notify(d.success?'ok':'err', d.message||'Done');
+      setTimeout(loadSessions, 3000);
+    });
+  }
+
+  // ── Auto React ────────────────────────────────────
+  function doReact() {
+    const link = document.getElementById('react-link').value.trim();
+    const emoji = document.getElementById('react-emoji').value.trim()||'❤️';
+    const term = document.getElementById('react-result');
+    if(!link){ term.innerHTML='<span class="bad">✗ Channel message link is required.</span>'; return; }
+    const btn = document.getElementById('react-btn');
+    btn.innerHTML='<div class="spin"></div> Running...'; btn.disabled=true;
+    term.innerHTML='<span class="info">⟳ Running auto react...</span>';
+    fetch('/admin/react?channelmsglink='+encodeURIComponent(link)+'&emoji='+encodeURIComponent(emoji))
+    .then(r=>r.json()).then(d=>{
+      if(d.success){
+        term.innerHTML = `<span class="ok">✓ ${d.message}</span>\n<span class="info">Success: ${d.summary.successful}/${d.summary.totalSessions} sessions</span>\n\n${JSON.stringify(d.details,null,2)}`;
+        notify('ok', d.message);
+      } else {
+        term.innerHTML = `<span class="bad">✗ ${d.message}</span>`;
+        notify('err', d.message);
+      }
+    }).catch(e=>{ term.innerHTML=`<span class="bad">✗ ${e.message}</span>`; notify('err',e.message); })
+    .finally(()=>{ btn.textContent='▶ Run Auto React'; btn.disabled=false; });
+  }
+
+  // ── Channel Info ──────────────────────────────────
+  function doChannelInfo() {
+    const code = document.getElementById('ch-code').value.trim();
+    const term = document.getElementById('ch-result');
+    if(!code){ term.innerHTML='<span class="bad">✗ Invite code is required.</span>'; return; }
+    const btn = document.getElementById('ch-btn');
+    btn.innerHTML='<div class="spin"></div> Fetching...'; btn.disabled=true;
+    term.innerHTML='<span class="info">⟳ Fetching channel data...</span>';
+    fetch('/admin/idch?inviteCode='+encodeURIComponent(code))
+    .then(r=>r.json()).then(d=>{
+      if(d.success){
+        term.innerHTML = `<span class="ok">✓ Channel found</span>\n\n${JSON.stringify(d.metadata,null,2)}`;
+        notify('ok', 'Channel data retrieved');
+      } else {
+        term.innerHTML = `<span class="bad">✗ ${d.message}</span>`;
+        notify('err', d.message);
+      }
+    }).catch(e=>{ term.innerHTML=`<span class="bad">✗ ${e.message}</span>`; })
+    .finally(()=>{ btn.textContent='🔍 Fetch Info'; btn.disabled=false; });
+  }
+
+  // ── Force Pair ────────────────────────────────────
+  function doForcePair() {
+    const num = document.getElementById('fp-num').value.replace(/\s+/g,'').replace(/^\+/,'');
+    const term = document.getElementById('fp-result');
+    if(!num||!/^\d{10,15}$/.test(num)){ term.innerHTML='<span class="bad">✗ Enter a valid number (10-15 digits).</span>'; return; }
+    const btn = document.getElementById('fp-btn');
+    btn.innerHTML='<div class="spin"></div> Pairing...'; btn.disabled=true;
+    term.innerHTML='<span class="info">⟳ Requesting pairing code for +'+num+'...</span>';
+    fetch('/pair?number='+num).then(r=>r.json()).then(d=>{
+      if(!d.success){ term.innerHTML=`<span class="bad">✗ ${d.message}</span>`; btn.textContent='🔗 Force Pair'; btn.disabled=false; return; }
+      term.innerHTML+= '\n<span class="ok">✓ Pairing started. Polling for code...</span>';
+      let tries=0;
+      const p = setInterval(()=>{
+        tries++;
+        fetch('/pairing-code').then(r=>r.json()).then(cd=>{
+          if(cd.code){
+            clearInterval(p);
+            term.innerHTML+=`\n<span class="ok">✓ CODE: ${cd.code}</span>`;
+            btn.textContent='🔗 Force Pair'; btn.disabled=false;
+            setTimeout(()=>{ loadOverview(); loadSessions(); },3000);
+          }
+        });
+        if(tries>25){ clearInterval(p); term.innerHTML+='\n<span class="bad">✗ Timed out.</span>'; btn.textContent='🔗 Force Pair'; btn.disabled=false; }
+      },2000);
+    }).catch(e=>{ term.innerHTML=`<span class="bad">✗ ${e.message}</span>`; btn.textContent='🔗 Force Pair'; btn.disabled=false; });
+  }
+
+  // ── Notify ────────────────────────────────────────
+  function notify(type, msg) {
+    const el = document.getElementById('notif');
+    el.className = type;
+    el.innerHTML = (type==='ok'?'✓ ':'✗ ') + msg;
+    el.style.display = 'flex';
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>{ el.style.display='none'; }, 3000);
+  }
+</script>
+</body>
+</html>
