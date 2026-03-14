@@ -1,0 +1,30 @@
+{
+  "name": "gabimaru-web-bot",
+  "description": "Gabimaru WhatsApp multi-session web pairing panel",
+  "keywords": ["whatsapp", "bot", "baileys", "pairing"],
+  "website": "",
+  "repository": "",
+  "logo": "",
+  "success_url": "/",
+  "scripts": {},
+  "env": {
+    "PORT": {
+      "description": "Port the web server listens on",
+      "value": "3000"
+    },
+    "SESSION_SECRET": {
+      "description": "Secret key for express-session",
+      "generator": "secret"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "addons": [],
+  "buildpacks": [
+    { "url": "heroku/nodejs" }
+  ]
+}
