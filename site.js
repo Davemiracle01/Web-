@@ -17,6 +17,9 @@ const app = express();
 app.set("json spaces", 2);
 const PORT = process.env.PORT || 2010;
 
+// CRITICAL for Heroku: trust proxy so HTTPS/secure cookies work behind load balancer
+app.set("trust proxy", 1);
+
 // ── Paths ─────────────────────────────────────────────────────────────────────
 const pairedNumbersPath = path.join(__dirname, "sesFolder", "pairedNumbers.json");
 const pairingCodePath   = path.join(__dirname, "richstore", "pairing", "pairing.json");
@@ -33,10 +36,17 @@ const usersPath         = path.join(__dirname, "richstore", "users.json");
 });
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
+const SESSION_SECRET = process.env.SESSION_SECRET || "gabimaru_hollow_secret_2025";
 app.use(session({
-  secret: "gabimaru_hollow_secret",
+  secret: SESSION_SECRET,
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
+  cookie: {
+    secure: !!process.env.DYNO,  // true on Heroku, false locally
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days - survives dyno restarts
+  }
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -82,7 +92,10 @@ app.post("/register", (req, res) => {
   saveUsers(users);
   req.session.loggedIn = true;
   req.session.username = username;
-  res.json({ success: true });
+  req.session.save((err) => {
+    if (err) return res.status(500).json({ success: false, message: "Session save failed." });
+    res.json({ success: true });
+  });
 });
 
 app.post("/login", (req, res) => {
@@ -96,7 +109,10 @@ app.post("/login", (req, res) => {
   const user = loadUsers().find(u => u.username === username && u.password === password);
   if (user) {
     req.session.loggedIn = true; req.session.username = username;
-    return res.json({ success: true });
+    return req.session.save((err) => {
+      if (err) return res.status(500).json({ success: false, message: "Session save failed." });
+      res.json({ success: true });
+    });
   }
   res.status(401).json({ success: false, message: "Invalid credentials." });
 });
@@ -127,7 +143,7 @@ app.get("/pair", requireLogin, async (req, res) => {
 
   user.pairings = user.pairings || [];
   if (user.pairings.includes(number)) return res.status(409).json({ success: false, message: "Number already paired." });
-  if (user.pairings.length >= 2) return res.status(403).json({ success: false, message: "Maximum 2 pairings reached." });
+  if (user.pairings.length >= 5) return res.status(403).json({ success: false, message: "Maximum 5 pairings reached." });
 
   currentPairingNumber = number;
 
@@ -315,27 +331,62 @@ app.delete("/admin/pairs/:number", requireAdmin, (req, res) => {
   res.json({ success: true, message: `Pair ${number} removed.` });
 });
 
+// ── Health check ─────────────────────────────────────────────────────────────
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    uptime: Math.floor(process.uptime()),
+    sessions: getAllSessions().length,
+    memory: process.memoryUsage().heapUsed,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ── Page routes ────────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "frontend", "index.html")));
 app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "frontend", "admin.html")));
 
 // ── Start server ───────────────────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`✅ TMK Site Server is running on port ${PORT}`);
+app.listen(PORT, "0.0.0.0", async () => {
+  console.log(`✅ Gabimaru Web Bot running on port ${PORT}`);
 
-  try {
-    const ipRes = await axios.get('https://api.ipify.org?format=json');
-    const ip = ipRes.data.ip;
-
-    console.log(`🌐 Public Access URL: http://${ip}:${PORT}`);
-    console.log(`- Login Page:       http://${ip}:${PORT}/login.html`);
-    console.log(`- Dashboard Page:   http://${ip}:${PORT}/dashboard`);
-  } catch (err) {
-    console.log("⚠️ Couldn't fetch public IP. Use your server panel IP manually.");
+  if (process.env.DYNO) {
+    // Running on Heroku
+    console.log(`🟢 Heroku dyno: ${process.env.DYNO} | Trust proxy: ON | Secure cookies: ON`);
+    // Self-ping keepalive every 14 minutes to prevent dyno sleep
+    if (process.env.APP_URL) {
+      const pingUrl = process.env.APP_URL.replace(/\/$/, "") + "/health";
+      setInterval(async () => {
+        try {
+          await axios.get(pingUrl, { timeout: 8000 });
+          console.log(`[keepalive] Pinged ${pingUrl}`);
+        } catch (e) {
+          console.error(`[keepalive] Ping failed: ${e.message}`);
+        }
+      }, 14 * 60 * 1000);
+      console.log(`🔃 Keepalive pinging ${pingUrl} every 14 min`);
+    } else {
+      console.log("⚠️  Set APP_URL env var to enable keepalive (prevents dyno sleep)");
+    }
+  } else {
+    // Running locally or on Pterodactyl
+    try {
+      const ipRes = await axios.get("https://api.ipify.org?format=json");
+      const ip = ipRes.data.ip;
+      console.log(`🌐 Public URL: http://${ip}:${PORT}`);
+    } catch {
+      console.log(`🌐 Running on port ${PORT}`);
+    }
   }
 
   await autoLoadPairs({ concurrent: false, batchSize: 100 });
 });
 
-process.on("uncaughtException", console.error);
-process.on("unhandledRejection", console.error);
+// Graceful shutdown (Heroku sends SIGTERM before killing dyno)
+process.on("SIGTERM", () => {
+  console.log("[SIGTERM] Shutting down gracefully...");
+  process.exit(0);
+});
+
+process.on("uncaughtException",  (err) => console.error("[uncaughtException]",  err.message));
+process.on("unhandledRejection", (err) => console.error("[unhandledRejection]", err?.message || err));
