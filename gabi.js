@@ -104,6 +104,7 @@ function loadPlugins() {
                 const aliases = Array.isArray(plugin.command) ? plugin.command : [plugin.command];
                 aliases.forEach(alias => commands.set(alias, plugin));
             }
+
         } catch (e) {
             console.error(chalk.red(`Error loading plugin ${file}:`), e);
         }
@@ -171,6 +172,7 @@ function storeMessage(msg) {
 async function handleProtocolMessage(sock, msg) {
     if (msg.message.protocolMessage?.type === 5) {
         const deleteKey = msg.message.protocolMessage.key;
+        if (!deleteKey?.remoteJid) return;
         const storeKey = `${deleteKey.remoteJid}_${deleteKey.id}`;
         const originalMessage = messageStore.get(storeKey);
         if (!originalMessage) return;
@@ -242,7 +244,18 @@ async function handleProtocolMessage(sock, msg) {
     }
 }
 
+// Track which plugins have been onLoad'd
+const onLoadedPlugins = new Set();
+
 async function handleMessage(sock, m) {
+    // Trigger onLoad for any plugin that hasn't been started yet
+    for (const [, plugin] of commands) {
+        const key = plugin.command?.[0] || plugin.command;
+        if (typeof plugin.onLoad === 'function' && !onLoadedPlugins.has(key)) {
+            onLoadedPlugins.add(key);
+            try { plugin.onLoad(sock); } catch(e) { console.error('onLoad error:', e.message); }
+        }
+    }
     try {
         const msg = m.messages[0];
         if (!msg?.message) return;
@@ -484,7 +497,7 @@ async function handleMessage(sock, m) {
         const sendarr = msg.key?.participant || msg.key?.remoteJid;
 
         async function sendRandomSticker(sock, from) {
-            const dir = path.join(__dirname, "../stick_output");
+            const dir = path.join(__dirname, "./stick_output");
             const stickers = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith(".webp")) : [];
             if (!stickers.length) return sock.sendMessage(from, { text: "No stickers found 😔" });
             const pick = stickers[Math.floor(Math.random() * stickers.length)];
@@ -583,7 +596,7 @@ Mode: ${settings.persona.mode}`;
             } catch (error) {
                 console.error("Groq API error:", error);
                 await sock.sendMessage(from, {
-                    text: "⚠️ groq apikey error use .chatbot off to turn off the chatbot"
+                    text: "⚠️ My brain is taking a coffee break right now. Try again in a bit! ☕"
                 }, { quoted: msg });
             }
         }
