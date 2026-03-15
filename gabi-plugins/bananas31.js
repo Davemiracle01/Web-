@@ -14,13 +14,14 @@ const INTERVAL     = "5m";
 const CHECK_EVERY  = 60 * 1000; // 60 seconds
 const RSI_PERIOD   = 14;
 
-// Send signals to these — newsletters from pair.js
-const SIGNAL_DESTINATIONS = [
-  "120363404343008289@newsletter",
-  "120363363333127547@newsletter",
-    "254789951753@s.whatsapp.net",
-      "254769279076@s.whatsapp.net",
-];
+// ── Destinations ─────────────────────────────────────────────────────────────
+// Group invite code (bot will auto-resolve to JID on first run)
+const GROUP_INVITE_CODE = "BY6aCEBIugD3kt9PGJI6u3";
+// Personal number
+const PERSONAL_JID      = "254789951753@s.whatsapp.net";
+
+// Resolved group JID cached here at runtime
+let resolvedGroupJid = null;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let lastSignal   = null; // "BUY" | "SELL" | null
@@ -45,16 +46,39 @@ function calcRSI(closes) {
 }
 
 // ── Fetch candles from Binance public API ─────────────────────────────────────
+// Binance blocks Heroku IPs (HTTP 451) — use mirrors with fallback chain
+const BINANCE_ENDPOINTS = [
+  `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`,
+  `https://api1.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`,
+  `https://api2.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`,
+  `https://api3.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`,
+  `https://data-api.binance.vision/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`,
+];
+
 async function fetchCandles() {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=50`;
-  const { data } = await axios.get(url, { timeout: 10000 });
-  return data.map(c => ({
-    open:   parseFloat(c[1]),
-    high:   parseFloat(c[2]),
-    low:    parseFloat(c[3]),
-    close:  parseFloat(c[4]),
-    volume: parseFloat(c[5]),
-  }));
+  let lastErr;
+  for (const url of BINANCE_ENDPOINTS) {
+    try {
+      const { data } = await axios.get(url, {
+        timeout: 12000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; BotSignal/1.0)",
+          "Accept": "application/json",
+        }
+      });
+      return data.map(c => ({
+        open:   parseFloat(c[1]),
+        high:   parseFloat(c[2]),
+        low:    parseFloat(c[3]),
+        close:  parseFloat(c[4]),
+        volume: parseFloat(c[5]),
+      }));
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[bananas31] Endpoint failed (${e.response?.status || e.message}), trying next...`);
+    }
+  }
+  throw new Error(`All Binance endpoints failed. Last error: ${lastErr?.message}`);
 }
 
 // ── Analyze signal ────────────────────────────────────────────────────────────
@@ -115,14 +139,41 @@ function buildMessages(signal, data) {
   ];
 }
 
-// ── Send messages to all destinations ────────────────────────────────────────
+// ── Resolve group invite → JID ───────────────────────────────────────────────
+async function resolveGroup(sock) {
+  if (resolvedGroupJid) return resolvedGroupJid;
+  try {
+    const info = await sock.groupGetInviteInfo(GROUP_INVITE_CODE);
+    resolvedGroupJid = info.id;
+    console.log(`[bananas31] Group resolved: ${resolvedGroupJid}`);
+  } catch (e) {
+    console.error("[bananas31] Could not resolve group:", e.message);
+    resolvedGroupJid = null;
+  }
+  return resolvedGroupJid;
+}
+
+// ── Send messages to group + personal ────────────────────────────────────────
 async function sendSignal(sock, signal, data) {
   const messages = buildMessages(signal, data);
-  for (const jid of SIGNAL_DESTINATIONS) {
+
+  // Resolve group JID if not cached
+  const groupJid = await resolveGroup(sock);
+
+  const destinations = [];
+  if (groupJid)    destinations.push(groupJid);
+  if (PERSONAL_JID) destinations.push(PERSONAL_JID);
+
+  if (!destinations.length) {
+    console.error("[bananas31] No valid destinations — group unresolved and no personal JID");
+    return;
+  }
+
+  for (const jid of destinations) {
     for (const text of messages) {
       try {
         await sock.sendMessage(jid, { text });
-        await new Promise(r => setTimeout(r, 1500)); // small delay between msgs
+        await new Promise(r => setTimeout(r, 1200));
       } catch (e) {
         console.error(`[bananas31] Failed to send to ${jid}:`, e.message);
       }
@@ -202,7 +253,7 @@ module.exports = {
 
     // Default: show status
     await sock.sendMessage(from, {
-      text: `🍌 *BANANAS31 Signal Bot*\n\nStatus: ${signalTimer ? "🟢 Running" : "🔴 Stopped"}\nLast signal: ${lastSignal || "None yet"}\nDestinations: ${SIGNAL_DESTINATIONS.length} JID(s)\n\nCommands:\n› *.bananas check* — force check now\n› *.bananas start* — start monitor\n› *.bananas stop* — stop monitor`
+      text: `🍌 *BANANAS31 Signal Bot*\n\nStatus: ${signalTimer ? "🟢 Running" : "🔴 Stopped"}\nLast signal: ${lastSignal || "None yet"}\nGroup JID: ${resolvedGroupJid || "Pending resolution"}\nPersonal: ${PERSONAL_JID}\n\nCommands:\n› *.bananas check* — force check now\n› *.bananas start* — start monitor\n› *.bananas stop* — stop monitor`
     }, { quoted: msg });
   }
 };
