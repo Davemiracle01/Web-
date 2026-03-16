@@ -4,7 +4,7 @@
  * Analyzes RSI + volume + candle patterns
  * Sends dramatic alerts on BUY/SELL signal change
  * Destination: newsletter JID from pair.js
- */
+ 
 
 const axios = require("axios");
 
