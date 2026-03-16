@@ -256,4 +256,4 @@ module.exports = {
       text: `🍌 *BANANAS31 Signal Bot*\n\nStatus: ${signalTimer ? "🟢 Running" : "🔴 Stopped"}\nLast signal: ${lastSignal || "None yet"}\nGroup JID: ${resolvedGroupJid || "Pending resolution"}\nPersonal: ${PERSONAL_JID}\n\nCommands:\n› *.bananas check* — force check now\n› *.bananas start* — start monitor\n› *.bananas stop* — stop monitor`
     }, { quoted: msg });
   }
-};
+};**/
