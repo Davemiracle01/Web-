@@ -37,41 +37,15 @@ module.exports = {
 
     const targetNum = target.split("@")[0];
 
-    // ── Style 3 — Action selector ──────────────────────────────────────────────
-    // Each rowId is a real command that will be triggered when tapped
-    const sections = [
-      {
-        title: "🛡️ Choose Action",
-        rows: [
-          {
-            title: "👟 Kick (remove only)",
-            rowId: `${prefix}kickconfirm ${target}`,
-            description: `Remove @${targetNum} from the group`
-          },
-          {
-            title: "⚠️ Warn before kick",
-            rowId: `${prefix}warnkick ${target}`,
-            description: `Send final warning then remove @${targetNum}`
-          },
-          {
-            title: "🚫 Kick & announce",
-            rowId: `${prefix}kickannounce ${target}`,
-            description: `Kick and notify the group`
-          }
-        ]
-      }
-    ];
-
-    // ── Style 5 — Target info card ─────────────────────────────────────────────
     await sock.sendMessage(from, {
-      text: `🛡️ *Admin Action*\n\n▸ Target: @${targetNum}\n\nChoose what action to take from the list below.`,
+      text: `🛡️ *Admin Action*\n\n▸ Target: @${targetNum}\n\n👟 Removing user from group...`,
       mentions: [target],
       contextInfo: {
         externalAdReply: {
           showAdAttribution: false,
           renderLargerThumbnail: false,
           title: `Admin Panel — @${targetNum}`,
-          body: "Select kick action from the list",
+          body: "Kick action executed",
           previewType: "PHOTO",
           thumbnailUrl: BANNER_URL,
           sourceUrl: GITHUB_URL,
@@ -81,13 +55,11 @@ module.exports = {
       }
     }, { quoted: fakeQuote(from) });
 
+    await sock.groupParticipantsUpdate(from, [target], "remove");
+
     await sock.sendMessage(from, {
-      text: `*Select Action for @${targetNum}*\n\nTap a row to execute the action instantly.`,
-      footer: `Admin Panel  •  @${targetNum}`,
-      title: "👟 Kick Options",
-      buttonText: "🔽  Choose Action",
-      sections,
-      listType: 1
+      text: `✅ @${targetNum} has been removed from the group.`,
+      mentions: [target]
     }, { quoted: msg });
   }
 };
