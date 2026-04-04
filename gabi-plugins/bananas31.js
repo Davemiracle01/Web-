@@ -1,4 +1,3 @@
-/**
  * bananas31.js — BANANAS31/USDT Signal Plugin
  * Fetches live Binance candle data every 60s
  * Analyzes RSI + volume + candle patterns
@@ -18,7 +17,7 @@ const RSI_PERIOD   = 14;
 // Group invite code (bot will auto-resolve to JID on first run)
 const GROUP_INVITE_CODE = "BY6aCEBIugD3kt9PGJI6u3";
 // Personal number
-const PERSONAL_JID      = "254789951753@s.whatsapp.net";
+const PERSONAL_JID      = "2543@s.whatsapp.net";
 
 // Resolved group JID cached here at runtime
 let resolvedGroupJid = null;
