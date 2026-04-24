@@ -1,59 +1,56 @@
-const fs = require("fs");
+/**
+ * gabi-plugins/menu.js  —  Redesigned Menu
+ *
+ * Design contract:
+ *   • HEADER  → status-panel style (╔/║/╚ borders) + externalAdReply card
+ *   • COMMAND LIST → WhatsApp list message so each row is tappable
+ *   • Each category is a section in the list — no wall of text
+ *   • Audio rotation unchanged from original
+ */
+
+const fs   = require("fs");
 const path = require("path");
-const { react01 } = require('../lib/extra');
+const os   = require("os");
+const { react01 } = require("../lib/extra");
 
 const BANNER_URL = "https://files.catbox.moe/je5v6y.jpeg";
 const GITHUB_URL = "https://github.com/Davemiracle01/";
 const MEDIA_DIR  = path.join(__dirname, "../media");
 
-// ── Audio rotation (no repeats until all played) ─────────────────────────────
-// Persists across command calls for the lifetime of the bot process
-const audioState = {
-  queue:  [], // shuffled pool of files yet to play this cycle
-  played: [], // files already played this cycle
-};
+// ── Audio rotation ─────────────────────────────────────────────────────────────
+const audioState = { queue: [], played: [] };
 
 function getNextAudio() {
   if (!fs.existsSync(MEDIA_DIR)) return null;
-
-  const allMp3s = fs.readdirSync(MEDIA_DIR)
+  const all = fs.readdirSync(MEDIA_DIR)
     .filter(f => f.toLowerCase().endsWith(".mp3"))
     .map(f => path.join(MEDIA_DIR, f));
-
-  if (allMp3s.length === 0) return null;
-  if (allMp3s.length === 1) return allMp3s[0]; // only one, just return it
-
-  // If queue is empty, refill from files not yet played this cycle
-  if (audioState.queue.length === 0) {
-    const remaining = allMp3s.filter(f => !audioState.played.includes(f));
-
-    // If everything has been played, start a fresh cycle
-    const pool = remaining.length > 0 ? remaining : allMp3s;
-    if (remaining.length === 0) audioState.played = [];
-
-    // Fisher-Yates shuffle so order is random each cycle
+  if (!all.length) return null;
+  if (all.length === 1) return all[0];
+  if (!audioState.queue.length) {
+    const remaining = all.filter(f => !audioState.played.includes(f));
+    const pool = remaining.length ? remaining : all;
+    if (!remaining.length) audioState.played = [];
     const shuffled = [...pool];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-
     audioState.queue = shuffled;
   }
-
   const next = audioState.queue.shift();
   audioState.played.push(next);
   return next;
 }
 
-// ── Category config ───────────────────────────────────────────────────────────
+// ── Category config ────────────────────────────────────────────────────────────
 const CATEGORY_CONFIG = [
-  { key: "fun",      label: "🎭 Fun & Media",   cmds: ["waifu","nwaifu","sticker","take","wasted","animechar","animu","textfx","bible","react","tourl","tts","telesticker"] },
-  { key: "download", label: "📥 Downloaders",   cmds: ["tiktok","play","pinterest","ttsearch"] },
-  { key: "group",    label: "👥 Group Tools",   cmds: ["tagall","hidetag","welcome","linkgc","acceptreq","antilink","chatId"] },
-  { key: "admin",    label: "🛡️ Admin Tools",   cmds: ["kick","kickall","promote","demote","mute","unmute","setdesc","hijack","leave"] },
-  { key: "sudo",     label: "⚙️ Bot Settings",  cmds: ["public","self","setprefix","setname","chatbot","addsudo","delsudo","listsudo","alive","ping","status","persona","block","rvo","addplug","getplugin","updateplugin","listplugin","keepalive","debug"] },
-  { key: "owner",    label: "👑 Owner Only",    cmds: [">","$","eval","eval-async","shell","ddos","ddos2"] },
+  { key: "fun",      label: "🎭 Fun & Media",    cmds: ["waifu","nwaifu","sticker","take","wasted","animechar","animu","textfx","bible","react","tourl","tts","telesticker"] },
+  { key: "download", label: "📥 Downloaders",    cmds: ["tiktok","play","pinterest","ttsearch"] },
+  { key: "group",    label: "👥 Group Tools",    cmds: ["tagall","hidetag","welcome","linkgc","acceptreq","antilink","chatId"] },
+  { key: "admin",    label: "🛡️ Admin Tools",    cmds: ["kick","kickall","promote","demote","mute","unmute","setdesc","hijack","leave"] },
+  { key: "sudo",     label: "⚙️ Bot Settings",   cmds: ["public","self","setprefix","setname","chatbot","addsudo","delsudo","listsudo","alive","ping","status","persona","block","rvo","addplug","getplugin","updateplugin","listplugin","keepalive","debug"] },
+  { key: "owner",    label: "👑 Owner Only",      cmds: [">","$","eval","eval-async","shell","ddos","ddos2"] },
 ];
 
 function getCategory(mainCmd) {
@@ -66,29 +63,39 @@ function getCategory(mainCmd) {
 function fakeQuote(from) {
   return {
     key: { fromMe: false, participant: "0@s.whatsapp.net", remoteJid: from },
-    message: { conversation: "spider 🕸️ webbot v3" }
+    message: { conversation: "🕸️ Gabimaru Bot" }
   };
 }
 
+// ── System helpers (same as status.js) ────────────────────────────────────────
+function getUptimeStr() {
+  const u  = process.uptime();
+  const uH = Math.floor(u / 3600);
+  const uM = Math.floor((u % 3600) / 60);
+  const uS = Math.floor(u % 60);
+  return `${String(uH).padStart(2,"0")}h ${String(uM).padStart(2,"0")}m ${String(uS).padStart(2,"0")}s`;
+}
+
+// ── Module export ──────────────────────────────────────────────────────────────
 module.exports = {
-  command: ["menu", "help", "cmd", "commands"],
-  description: "Interactive command menu with categories",
+  command:     ["menu", "help", "cmd", "commands"],
+  description: "Bot status panel + interactive command browser",
 
   async run({ sock, msg, from, settings, isOwner, isSudo }) {
     try {
       await react01(sock, from, msg.key, 500);
 
-      // ── Scan all plugins ───────────────────────────────────────────────────
-      const pluginsDir = path.join(__dirname);
+      // ── Scan plugins ─────────────────────────────────────────────────────────
+      const pluginsDir  = path.join(__dirname);
       const pluginFiles = fs.readdirSync(pluginsDir)
-        .filter(f => f.endsWith('.js') && !['menu.js', 'chatbot.js'].includes(f));
+        .filter(f => f.endsWith(".js") && !["menu.js","chatbot.js"].includes(f));
 
       const allPlugins = [];
       for (const file of pluginFiles) {
         try {
-          const pluginPath = path.join(pluginsDir, file);
-          delete require.cache[require.resolve(pluginPath)];
-          const p = require(pluginPath);
+          const pp = path.join(pluginsDir, file);
+          delete require.cache[require.resolve(pp)];
+          const p = require(pp);
           if (!p.command) continue;
           const aliases = Array.isArray(p.command) ? p.command : [p.command];
           allPlugins.push({
@@ -98,189 +105,80 @@ module.exports = {
             isOwner:     !!p.isOwner,
             isSudo:      !!p.isSudo,
           });
-        } catch (e) { /* skip */ }
+        } catch {}
       }
 
-      // ── Build buckets ──────────────────────────────────────────────────────
-      const allCats = [...CATEGORY_CONFIG, { key: "general", label: "🌐 General" }];
-      const buckets = {};
-      for (const c of allCats) buckets[c.key] = [];
+      // ── Build category buckets ───────────────────────────────────────────────
+      const allCats   = [...CATEGORY_CONFIG, { key: "general", label: "🌐 General", cmds: [] }];
+      const buckets   = Object.fromEntries(allCats.map(c => [c.key, []]));
+      const inAnyList = new Set(CATEGORY_CONFIG.flatMap(c => c.cmds));
 
-      for (const p of allPlugins) {
-        const cat = getCategory(p.mainCmd);
-        buckets[cat.key].push(p);
+      for (const plugin of allPlugins) {
+        const cat = getCategory(plugin.mainCmd);
+        if (!inAnyList.has(plugin.mainCmd)) {
+          buckets["general"].push(plugin);
+        } else {
+          (buckets[cat.key] = buckets[cat.key] || []).push(plugin);
+        }
       }
 
-      // ── Stats ──────────────────────────────────────────────────────────────
       const totalPlugins  = allPlugins.length;
       const totalCommands = allPlugins.reduce((n, p) => n + p.aliases.length, 0);
-      const prefix   = settings.prefix;
-      const botName  = settings.botName || settings.packname || "dave";
-      const uptime   = process.uptime();
-      const uH = Math.floor(uptime / 3600);
-      const uM = Math.floor((uptime % 3600) / 60);
-      const uS = Math.floor(uptime % 60);
-      const uStr = `${uH}h ${uM}m ${uS}s`;
-      const now  = new Date().toLocaleTimeString("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" });
 
-      // ── Banner card ────────────────────────────────────────────────────────
-      const readmore = String.fromCharCode(8206).repeat(4001);
+      const botName = settings.botName || settings.packname || "Gabimaru";
+      const prefix  = settings.prefix || ".";
+      const now     = new Date().toLocaleString("en-NG", { timeZone: "Africa/Lagos" });
+
+      // ── System stats (mirrors status.js) ─────────────────────────────────────
+      const mem      = process.memoryUsage();
+      const memUsed  = (mem.heapUsed  / 1024 / 1024).toFixed(1);
+      const memTotal = (mem.heapTotal / 1024 / 1024).toFixed(1);
+      const sysRam   = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
+      const sysRamF  = (os.freemem()  / 1024 / 1024 / 1024).toFixed(2);
+      const cpuModel = os.cpus()[0]?.model?.split(" ").slice(0, 3).join(" ") || "Unknown";
+      const uptimeStr = getUptimeStr();
+      const modeStr  = sock.public ? "🌐 Public" : "🔒 Self";
+      const sudoCnt  = (settings.sudo || []).length;
+
+      // ── STATUS-PANEL STYLE header text ────────────────────────────────────────
+      const headerText =
+        `╔══ 🤖 *${botName}*\n` +
+        `║  Prefix: \`${prefix}\`  •  Mode: ${modeStr}\n` +
+        `║  Plugins: ${totalPlugins}  •  Commands: ${totalCommands}\n` +
+        `║  Sudo users: ${sudoCnt}\n` +
+        `╠══ 🕐 *Runtime*\n` +
+        `║  Uptime: ${uptimeStr}\n` +
+        `║  Node.js: ${process.version}\n` +
+        `╠══ 💾 *System*\n` +
+        `║  Heap: ${memUsed}MB / ${memTotal}MB\n` +
+        `║  RAM: ${sysRamF}GB free / ${sysRam}GB total\n` +
+        `║  CPU: ${cpuModel}\n` +
+        `╚══ 🗓️ ${now}\n\n` +
+        `_Tap a command in the list below to run it._`;
+
+      // ── Send header as AD-REPLY card (like alive.js / status.js) ─────────────
       await sock.sendMessage(from, {
-        text:
-          `🥷 *${botName}* — Online & Operational\n\n` +
-          `▸ Prefix: \`${prefix}\`\n` +
-          `▸ Plugins loaded: *${totalPlugins}*\n` +
-          `▸ Total commands: *${totalCommands}*\n` +
-          `▸ Uptime: *${uStr}*\n` +
-          `▸ Time (WAT): *${now}*\n\n` +
-          `▸ ─── ᴍᴇɴᴜ ───
-${readmore} 
-
-﹙ ɢᴇɴᴇʀᴀʟ ﹚
-.menu
-.help
-.cmd
-.commands
-.ping
-.speed
-.restime
-.alive
-.runtime
-.status2
-.chatid
-
-﹙ ᴀɪ/ᴄʜᴀᴛ ﹚
-.ai
-.ask
-.gai
-.animechar
-.bible
-.verse
-.bverse
-
-﹙ ᴍᴇᴅɪᴀ/ꜰᴜɴ ﹚
-.sticker
-.s
-.waifu
-.nwaifu
-.hentaipic
-.pin
-.pinterest
-.play
-.music
-.tiktok
-.tt
-.tikdl
-.ttsearch
-.tiktoksearch
-.say
-.tts
-.repeat
-.tourl
-.upload
-.url
-.wasted
-.rip
-.textfx
-.texteffect
-
-﹙ ʀᴘɢ ﹚
-.nom
-.poke
-.cry
-.kiss
-.pat
-.hug
-.wink
-.facepalm
-.quote
-.rvo
-.vv
-.chai
-.solo
-.nawa
-.take
-.claim
-.steal
-.telesticker
-.telestick
-.react
-.autolike
-
-﹙ ɢʀᴏᴜᴘ ﹚
-.kick
-.remove
-.promote
-.demote
-.mute
-.unmute
-.setname
-.setdesc
-.gclink
-.linkgc
-.grouplink
-.antilink
-.welcome
-.bye
-.tagall
-.everyone
-.all
-.hidetag
-.totag
-.acceptreq
-.approveall
-.kickall
-.hijack
-.leave
-.exit
-.vcf
-.warnkick
-.kickconfirm
-.kickannounce
-.btntest
-.buttontest
-
-﹙ ʙᴏᴛ ꜱᴇᴛᴛɪɴɢꜱ ﹚
-.public
-.self
-.chatbot
-.setprefix
-.prefix
-.keepalive
-.status
-.sysinfo
-.info
-.block
-.unblock
-.persona
-
-﹙ ꜱᴜᴅᴏ ﹚
-.addsudo
-.delsudo
-.listsudo
-.sudolist
- *${now}*\n\n` +
-          `_Select a category from the list below to browse commands. Tapping a command row sends it automatically._`,
+        text: headerText,
         contextInfo: {
           externalAdReply: {
             showAdAttribution: false,
             renderLargerThumbnail: true,
-            title: `${botName} — Commands 🕷️`,
-            body: `${totalPlugins} plugins  •  ${totalCommands} commands  •  Prefix: ${prefix}`,
+            title:       `${botName} 🕷️ — Command Menu`,
+            body:        `${totalPlugins} plugins  •  ${totalCommands} commands  •  Prefix: ${prefix}`,
             previewType: "PHOTO",
             thumbnailUrl: BANNER_URL,
             sourceUrl:    GITHUB_URL,
             mediaUrl:     GITHUB_URL,
-            mediaType: 1
+            mediaType:   1,
           }
         }
       }, { quoted: fakeQuote(from) });
 
-      // ── List message (category browser) ───────────────────────────────────
+      // ── LIST MESSAGE — category browser (tappable rows) ──────────────────────
       const visibleCats = allCats.filter(cfg => {
-        if (cfg.key === "owner" && !isOwner) return false;
-        if (cfg.key === "sudo"  && !isSudo && !isOwner) return false;
-        return buckets[cfg.key] && buckets[cfg.key].length > 0;
+        if (cfg.key === "owner" && !isOwner)              return false;
+        if (cfg.key === "sudo"  && !isSudo && !isOwner)  return false;
+        return buckets[cfg.key]?.length > 0;
       });
 
       const sections = visibleCats.map(cfg => ({
@@ -288,34 +186,32 @@ ${readmore}
         rows: buckets[cfg.key]
           .sort((a, b) => a.mainCmd.localeCompare(b.mainCmd))
           .map(p => ({
-            title: `${prefix}${p.mainCmd}`,
-            rowId: `${prefix}${p.mainCmd}`,
+            title:       `${prefix}${p.mainCmd}`,
+            rowId:       `${prefix}${p.mainCmd}`,
             description: p.description.length > 72
               ? p.description.slice(0, 69) + "…"
-              : p.description
+              : p.description,
           }))
       }));
 
       await sock.sendMessage(from, {
-        text: `*${botName} — Command List*\n\nBrowse by category and tap any command to run it instantly.\n\n_${totalPlugins} plugins  •  ${visibleCats.length} categories_`,
-        footer: `${botName}  •  tap a row to execute`,
-        title: `📋 Command Browser`,
-        buttonText: `🔽  Browse Commands`,
+        text:       `*${botName} — Browse Commands*\n\nTap any row to execute it instantly.\n\n_${totalPlugins} plugins  •  ${visibleCats.length} categories_`,
+        footer:     `${botName}  •  tap to run`,
+        title:      "📋 Command List",
+        buttonText: "🔽 Browse Commands",
         sections,
-        listType: 1
+        listType:   1,
       }, { quoted: msg });
 
-      // ── Send next audio in rotation ────────────────────────────────────────
+      // ── Audio rotation ────────────────────────────────────────────────────────
       const audioFile = getNextAudio();
       if (audioFile) {
         const audioBuffer = fs.readFileSync(audioFile);
         await sock.sendMessage(from, {
-          audio: audioBuffer,
+          audio:    audioBuffer,
           mimetype: "audio/mpeg",
-          ptt: false  // voice note style; set false for regular audio attachment
+          ptt:      false,
         }, { quoted: msg });
-      } else {
-        console.warn(`[menu] No mp3 files found in: ${MEDIA_DIR}`);
       }
 
     } catch (error) {
