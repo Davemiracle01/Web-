@@ -22,11 +22,118 @@ const PERSONAL_JID      = "2543@s.whatsapp.net";
 // Resolved group JID cached here at runtime
 let resolvedGroupJid = null;
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let lastSignal   = null; // "BUY" | "SELL" | null
-let signalTimer  = null;
-let activeSock   = null;
+// ── Helper: Ensure bot is in the group ──────────────────────────────────────
+async function ensureGroupMembership(sock, inviteCode) {
+    try {
+        // First, try to resolve the invite code to get group info
+        const groupInfo = await sock.groupGetInviteInfo(inviteCode);
+        
+        if (!groupInfo) {
+            console.log("❌ Could not resolve invite code");
+            return null;
+        }
+        
+        const groupId = groupInfo.id;
+        console.log(`📱 Resolved group ID: ${groupId}`);
+        
+        // Check if bot is already in the group
+        const groupMetadata = await sock.groupMetadata(groupId);
+        const botParticipant = groupMetadata.participants.find(
+            p => p.id === sock.user.id
+        );
+        
+        if (botParticipant) {
+            console.log("✅ Bot is already a member of the group");
+            return groupId;
+        }
+        
+        // Bot is not in the group, try to join
+        console.log("🔗 Bot is not in the group, attempting to join...");
+        await sock.groupAcceptInvite(inviteCode);
+        console.log("✅ Successfully joined the group!");
+        
+        // Wait a moment for the join to propagate
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        return groupId;
+        
+    } catch (error) {
+        console.error("❌ Failed to ensure group membership:", error);
+        
+        // Send error to personal number for notification
+        if (sock) {
+            await sock.sendMessage(PERSONAL_JID, {
+                text: `⚠️ Failed to join group with invite code ${inviteCode}\nError: ${error.message}`
+            });
+        }
+        
+        return null;
+    }
+}
 
+// ── Main bot logic ──────────────────────────────────────────────────────────
+async function startBot(sock) {
+    try {
+        // STEP 1: Ensure bot is in the group before anything else
+        console.log("🔍 Checking group membership...");
+        const groupJid = await ensureGroupMembership(sock, GROUP_INVITE_CODE);
+        
+        if (!groupJid) {
+            console.error("❌ Cannot proceed - failed to join/verify group");
+            await sock.sendMessage(PERSONAL_JID, {
+                text: "❌ Bot failed to join the required group. Please check invite code and permissions."
+            });
+            return;
+        }
+        
+        // Cache the resolved group JID
+        resolvedGroupJid = groupJid;
+        console.log(`✅ Group ready: ${resolvedGroupJid}`);
+        
+        // Send confirmation to personal number
+        await sock.sendMessage(PERSONAL_JID, {
+            text: `✅ Bot is online and in the group!\nGroup ID: ${resolvedGroupJid}\nSymbol: ${SYMBOL}\nInterval: ${INTERVAL}`
+        });
+        
+        // STEP 2: Start your trading/monitoring logic here
+        console.log("🚀 Bot initialization complete, starting monitoring...");
+        
+        // Example monitoring loop (replace with your actual logic)
+        async function monitoringLoop() {
+            try {
+                // Your RSI calculation and trading logic here
+                // When you need to send a message to the group:
+                // await sock.sendMessage(resolvedGroupJid, { text: "Your message here" });
+                
+                console.log("📊 Checking market conditions...");
+                // ... your existing trading logic ...
+                
+            } catch (error) {
+                console.error("Error in monitoring loop:", error);
+                await sock.sendMessage(PERSONAL_JID, {
+                    text: `⚠️ Error in bot: ${error.message}`
+                });
+            }
+        }
+        
+        // Run initial check
+        await monitoringLoop();
+        
+        // Set up periodic checks
+        setInterval(monitoringLoop, CHECK_EVERY);
+        
+    } catch (error) {
+        console.error("❌ Fatal error in startBot:", error);
+        if (sock) {
+            await sock.sendMessage(PERSONAL_JID, {
+                text: `💥 Fatal bot error: ${error.message}`
+            });
+        }
+    }
+}
+
+// ── Export for use in your main WhatsApp connection file ────────────────────
+module.exports = { startBot, resolvedGroupJid, GROUP_INVITE_CODE, PERSONAL_JID };
 // ── RSI Calculation ───────────────────────────────────────────────────────────
 function calcRSI(closes) {
   if (closes.length < RSI_PERIOD + 1) return null;
